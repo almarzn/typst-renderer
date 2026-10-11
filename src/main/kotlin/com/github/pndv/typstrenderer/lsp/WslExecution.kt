@@ -5,7 +5,6 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
-import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.project.Project
 
 /**
@@ -34,11 +33,19 @@ data class WslTarget(val distroId: String)
  * Resolves the WSL distribution id encoded in a `\\wsl$\<distro>\...` / `\\wsl.localhost\<distro>\...`
  * UNC path, or `null` if [path] is not such a path (an ordinary Windows path, or unset).
  *
- * Thin wrapper over the platform's own UNC parser — no reimplementation of the two accepted
- * UNC prefixes or their quirks.
+ * Accepts both backslash and forward-slash separators — `Project.basePath` and `VirtualFile.path`
+ * use the VFS's `//wsl.localhost/<distro>/...` form. Parsed here rather than via the platform's
+ * `WslPath.parseWindowsUncPath`, which returns `null` on any non-Windows host and so made this
+ * pure function (and its tests) host-dependent. Callers already gate on [TinymistManager.isWindows].
  */
-fun detectWslDistroFromPath(path: String?): String? =
-    path?.let { WslPath.parseWindowsUncPath(it)?.distributionId }
+fun detectWslDistroFromPath(path: String?): String? {
+    if (path == null) return null
+    val normalized = path.replace('\\', '/')
+    val prefix = WSL_UNC_PREFIXES.find { normalized.startsWith(it, ignoreCase = true) } ?: return null
+    return normalized.substring(prefix.length).substringBefore('/').ifEmpty { null }
+}
+
+private val WSL_UNC_PREFIXES = listOf("//wsl$/", "//wsl.localhost/")
 
 /**
  * Pure decision core: given the configured [mode] and distro override, and the distro (if any)

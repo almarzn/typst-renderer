@@ -84,6 +84,17 @@ class WslExecutionTest {
     }
 
     @Test
+    fun detectWslDistroFromPath_vfsForwardSlashPath_returnsDistroId() {
+        assertEquals("Ubuntu-22.04", detectWslDistroFromPath("//wsl.localhost/Ubuntu-22.04/home/user/project"))
+        assertEquals("Ubuntu-22.04", detectWslDistroFromPath("//wsl$/Ubuntu-22.04"))
+    }
+
+    @Test
+    fun detectWslDistroFromPath_prefixWithoutDistro_returnsNull() {
+        assertNull(detectWslDistroFromPath("""\\wsl.localhost\"""))
+    }
+
+    @Test
     fun detectWslDistroFromPath_ordinaryWindowsPath_returnsNull() {
         assertNull(detectWslDistroFromPath("""C:\Users\me\project"""))
     }
